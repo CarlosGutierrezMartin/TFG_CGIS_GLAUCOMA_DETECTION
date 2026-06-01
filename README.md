@@ -1,161 +1,123 @@
-# TFG CGIS - Segmentacion disco-copa y estimacion de biomarcadores asociados a sospecha glaucomatosa
+# TFG CGIS — Segmentación disco-copa y estimación de biomarcadores asociados a sospecha glaucomatosa
+
+**Notebook principal: `TFG_GLAUCOMA_v6.0.ipynb`**
 
 ## Objetivo
 
-Este repositorio contiene el notebook principal del TFG. Es un sistema de **segmentacion de disco optico y copa optica** (U-Net con backbone `inceptionresnetv2`) y de **estimacion de biomarcadores morfologicos** (`vCDR` y derivados) **asociados a sospecha glaucomatosa**, evaluado sobre el dataset REFUGE con validacion externa reservada. **No es un sistema de diagnostico automatico de glaucoma**: el diagnostico requiere campo visual, OCT, presion intraocular, historia clinica y exploracion oftalmologica.
+Sistema de **segmentación de disco óptico y copa óptica** (U-Net con backbone `inceptionresnetv2`) y de **estimación de biomarcadores morfológicos** (`vCDR` y derivados) **asociados a sospecha glaucomatosa**, evaluado sobre el dataset REFUGE con validación externa reservada. **No es un sistema de diagnóstico automático de glaucoma**: el diagnóstico requiere campo visual, OCT, presión intraocular, historia clínica y exploración oftalmológica.
 
-La reorganizacion actual prioriza reproducibilidad, trazabilidad metodologica y ausencia de fuga de datos entre entrenamiento y validacion externa.
+El diseño prioriza reproducibilidad, trazabilidad metodológica y ausencia de fuga de datos entre entrenamiento, validación externa y test.
 
-## Estructura principal
+> 📘 **Documentación completa:** [`PIPELINE_DOCUMENTACION.md`](PIPELINE_DOCUMENTACION.md) es la referencia técnica detallada (la "biblia" del proyecto), con cada decisión justificada, los resultados completos, el posicionamiento frente al estado del arte y el análisis de auditoría. Este README es solo un resumen operativo.
 
-- `TFG_CGIS_GLAUCOMA_DETECTION/TFG_GLAUCOMA_v3_0.ipynb`: notebook tecnico principal.
-- `TFG_CGIS_GLAUCOMA_DETECTION/README.md`: documento interno breve del subproyecto.
+## Resultados finales (REFUGE-Test400, 400 imágenes nunca vistas)
 
-El notebook queda organizado en catorce bloques:
+| Métrica | Valor |
+|---|---|
+| IoU / Dice Disco | 0.824 / 0.901 |
+| IoU / Dice Copa | 0.604 / 0.743 |
+| MAE vCDR (crudo → corregido afín) | 0.085 → **0.064** |
+| AUC (score combinado) | **0.862** |
+| Punto operativo principal `sensitivity_at_least_0.85` | Sens 0.80 · Spec 0.75 |
+| Alternativa equilibrada (Youden) | Sens 0.70 · Spec 0.83 |
 
-1. Configuracion del entorno
-2. Carga y preparacion del dataset
+Las métricas puntuales se acompañan de **intervalos de confianza bootstrap al 95 %** (celda 12.b). El umbral, la corrección afín del vCDR y la calibración de probabilidad se ajustan **siempre en Validation400** y se aplican a Test400 sin recalibrar.
+
+**Posicionamiento (REFUGE, Orlando et al. 2020):** el AUC de clasificación del challenge osciló entre 0.846 y 0.989, con el vCDR de la GT alcanzando 0.947. Este sistema (0.862) se sitúa en la franja baja del leaderboard de 2018, resultado razonable y defendible para un TFG entrenado **solo con 400 imágenes**, sin datos externos y en Colab gratuito. El margen de mejora está en la segmentación de la copa, no en el clasificador. Detalles en la sección 22 de la documentación.
+
+## Estructura del notebook (15 secciones)
+
+1. Configuración del entorno
+2. Carga y preparación del dataset
 3. Protocolo experimental y preprocesamiento
-4. Construccion del pipeline de entrenamiento
-5. Definicion del modelo
-6. Entrenamiento K-Fold del modelo de segmentacion disco-copa
-7. Carga y verificacion de modelos entrenados
-8. Inferencia y segmentacion
-9. Extraccion de biomarcadores clinicos
-10. Validacion externa
-11. Calibracion clinica y estudio de ablacion
-12. Evaluacion final y comparacion de puntos operativos en REFUGE-Test400
-13. Analisis visual de errores y auditoria tecnica de ROI/GT
-14. Resumen final del experimento y exportacion de resultados
-
-## Rutas esperadas en Google Drive
-
-No se han cambiado nombres de archivos ni rutas del proyecto. El notebook espera la siguiente estructura:
-
-```text
-/content/drive/MyDrive/TFG_Glaucoma
-/content/drive/MyDrive/TFG_Glaucoma/Refuge.rar
-/content/drive/MyDrive/TFG_Glaucoma/Models_vPro_Fixed
-```
-
-Los modelos finales se guardan y cargan con estos nombres:
-
-```text
-model_fold_1.keras
-model_fold_2.keras
-model_fold_3.keras
-model_fold_4.keras
-model_fold_5.keras
-```
-
-El dataset REFUGE se conserva con sus nombres originales:
-
-```text
-REFUGE-Training400
-Annotation-Training400
-REFUGE-Validation400
-REFUGE-Validation400-GT
-Disc_Cup_Masks
-```
+4. Construcción del pipeline de entrenamiento
+5. Definición del modelo
+6. Entrenamiento K-Fold (segmentación disco-copa)
+7. Carga y verificación de modelos entrenados
+8. Inferencia y segmentación (ensemble + TTA)
+9. Extracción de biomarcadores clínicos
+10. Validación externa (REFUGE-Validation400)
+11. Calibración clínica y estudio de ablación
+12. Evaluación final en REFUGE-Test400 · **12.b Significancia estadística (IC bootstrap)**
+13. Análisis visual de errores y auditoría técnica de ROI
+14. Resumen final del experimento y exportación de resultados
+15. Refinamiento clínico post-hoc y calibración (corrección afín del vCDR, ablación, calibración Platt + fiabilidad/Brier/ECE, gate de incertidumbre)
 
 ## Protocolo experimental
 
-El cambio metodologico principal es la separacion estricta de datos:
+Separación estricta de datos (pilar metodológico del trabajo):
 
-- `REFUGE-Training400`: entrenamiento y validacion interna mediante K-Fold.
-- `REFUGE-Validation400`: validacion externa final. No se usa para entrenar.
+- `REFUGE-Training400`: entrenamiento y validación interna mediante K-Fold (5 folds).
+- `REFUGE-Validation400`: validación externa y **calibración** de umbral, corrección de bias y probabilidad. No se usa para entrenar.
+- `REFUGE-Test400`: evaluación final. **No se usa para ninguna decisión de diseño ni calibración.**
 
-El notebook define dos variables independientes:
+El K-Fold se aplica solo sobre `train_data`; la validación externa y el test usan conjuntos independientes. Se verifica la ausencia de fuga de datos por ruta y por hash MD5.
 
-```python
-train_data = get_all_pairs_robust(TRAIN_DIRS)
-external_val_data = get_all_pairs_robust(EXTERNAL_VAL_DIRS)
+## Rutas esperadas en Google Drive
+
+```text
+/content/drive/MyDrive/TFG_Glaucoma_CLEAN/
+  Refuge.zip                      # respaldo (descompresión solo en primera ejecución)
+  Refuge/                         # dataset descomprimido (REFUGE-Training400, -Validation400-GT, Test400, ...)
+  Models_v5_TverskyCup/           # modelos finales y resultados (CFG.SAVE_PATH)
+    model_fold_1.keras ... model_fold_5.keras
+    external_validation_results.csv, test_validation_results.csv
+    test_metrics_ci.csv           # intervalos de confianza bootstrap
+    calibration/                  # ablación, umbrales, diagrama de fiabilidad, Brier/ECE
+    posthoc_refinement/           # corrección afín del vCDR y resumen post-hoc
+    final_summary/final_report.md
 ```
-
-El K-Fold se aplica solo sobre `train_data`. La validacion externa se ejecuta solo sobre `external_val_data`.
 
 ## Preprocesamiento e inferencia
 
-El preprocesamiento se centraliza en funciones reutilizables para entrenamiento, validacion, inferencia y visualizacion:
+Centralizado en funciones reutilizables para entrenamiento, validación, inferencia y visualización:
 
 - lectura RGB con OpenCV;
-- recorte de region de interes centrado en la papila con radio de 200 pixeles;
-- redimensionamiento a `512 x 512`;
-- conversion de mascaras REFUGE a clases semanticas;
+- recorte de ROI centrado en la papila (radio 200 px) con localizador robusto y **guarda** (solo interviene si el método original falla);
+- redimensionamiento a `512 × 512`;
+- conversión de máscaras REFUGE a clases semánticas (`0` fondo, `1` disco, `2` copa);
 - CLAHE sobre luminancia;
-- preprocesamiento especifico del backbone `inceptionresnetv2`.
+- preprocesamiento específico del backbone `inceptionresnetv2`.
 
-Las clases de mascara son:
+La inferencia aplica ensemble de los cinco folds, test-time augmentation horizontal y postprocesamiento anatómico (componente conectado principal y copa contenida en el disco).
 
-```text
-0 = fondo
-1 = disco optico
-2 = copa optica
-```
+## Biomarcadores, score y calibración
 
-La inferencia aplica ensemble de los cinco folds, test-time augmentation horizontal y postprocesamiento anatomico basico para conservar el componente conectado principal y asegurar que la copa no quede fuera del disco.
+- diámetros verticales de disco y copa, `vCDR`, `hCDR`, `area_CDR`, `rCDR`, anillo neurorretiniano e indicador `ISNT-like` (aproximación geométrica, no evaluación clínica completa);
+- `risk_score_combined = 0.70·norm(vCDR) + 0.20·norm(rCDR) + 0.10·ISNT_like`;
+- **corrección afín del vCDR** ajustada en Validation400 (corrige el sesgo +0.077 → 0; mejora el MAE, no el AUC por ser monótona);
+- **calibración de probabilidad (Platt)** con diagrama de fiabilidad, Brier y ECE;
+- umbral de decisión calibrado en Validation400 (estrategia principal `sensitivity_at_least_0.85`).
 
-## Biomarcadores y score
+## Ejecución en Colab
 
-La segmentacion termina en una mascara postprocesada. Despues se calculan biomarcadores en funciones separadas:
+1. Abrir `TFG_GLAUCOMA_v6.0.ipynb`.
+2. Ejecutar la **Sección 1** (entorno, dependencias, semillas, montaje de Drive).
+3. **Secciones 2–4** (dataset, protocolo, pipeline).
+4. **Sección 6** (entrenamiento K-Fold) **solo si se desea regenerar modelos** (~3–4 h). Si ya existen en `Models_v5_TverskyCup`, saltar a la 7.
+5. **Sección 7** (verificación y carga del ensemble).
+6. **Secciones 8–10** (inferencia, biomarcadores, validación externa).
+7. **Sección 11** (calibración y ablación → fija umbral y puntos operativos).
+8. **Sección 12 + 12.b** (test final + intervalos de confianza).
+9. **Secciones 13–14** (análisis de errores, auditoría ROI, resumen).
+10. **Sección 15** (refinamiento post-hoc y calibración de probabilidad).
 
-- diametro vertical del disco;
-- diametro vertical de la copa;
-- `vCDR`;
-- `rCDR`;
-- indicador geometrico simplificado inspirado en la regla ISNT.
-
-El indicador ISNT no debe interpretarse como una evaluacion clinica completa de la regla ISNT. Es una aproximacion geometrica para analisis experimental.
-
-El umbral clinico `0.52` se mantiene como criterio heuristico. Antes de presentar resultados definitivos conviene justificarlo formalmente, recalibrarlo con indice de Youden o priorizar sensibilidad segun el criterio clinico elegido.
-
-## Ejecucion en Colab
-
-1. Abrir `TFG_CGIS_GLAUCOMA_DETECTION/TFG_GLAUCOMA_v3_0.ipynb`.
-2. Ejecutar configuracion del entorno.
-3. Montar Drive, copiar `Refuge.rar`, descomprimir y validar estructura.
-4. Indexar `train_data` y `external_val_data`.
-5. Entrenar con `run_kfold_training()` solo si se desea regenerar modelos.
-6. Cargar modelos con `load_ensemble_models()`.
-7. Ejecutar validacion externa con `evaluate_external_validation(models)`.
-8. Ejecutar ablacion con `run_ablation_study(external_results)`.
-9. Revisar casos visuales con `plot_representative_cases(models, external_results)`.
-
-El entrenamiento completo es costoso y queda comentado por defecto para evitar ejecuciones accidentales.
+> El reentrenamiento es costoso; las secciones de evaluación funcionan cargando los modelos ya guardados sin reentrenar.
 
 ## Logs
 
-Los mensajes del notebook usan lenguaje tecnico en espanol y prefijos consistentes:
+Prefijos consistentes, sin emojis: `[INFO]`, `[OK]`, `[ADVERTENCIA]`, `[ERROR]`, `[CRITICO]`.
 
-```text
-[INFO]
-[OK]
-[ADVERTENCIA]
-[ERROR]
-[CRITICO]
-```
+## Nota sobre la pérdida de entrenamiento
 
-No se usan emojis en logs ni mensajes tecnicos.
-
-## Validacion y metricas
-
-La validacion externa calcula:
-
-- AUC-ROC;
-- umbral aplicado;
-- sensibilidad;
-- especificidad;
-- precision;
-- F1-score;
-- matriz de confusion.
-
-Las metricas actuales no deben considerarse definitivas hasta recalcularlas con la separacion corregida entre entrenamiento interno y validacion externa.
+La pérdida es **Tversky ponderada + 0.5·Focal**. La copa usa una parametrización asimétrica (α=0.3 < β=0.7) que, por la convención `TI = TP/(TP+α·FP+β·FN)`, es *recall-oriented* (Salehi et al. 2017) y **no reduce la sobre-segmentación** de la copa. La auditoría confirma que el sesgo del vCDR persiste tras el reentreno; por eso **se corrige post-hoc** (corrección afín, Sección 15). Justificación completa en la sección 11 de la documentación. Una variante *precision-oriented* (α>β) que ataque la sobre-segmentación en origen queda como trabajo futuro (requeriría reentrenar).
 
 ## Limitaciones
 
-- El sistema estima biomarcadores asociados a sospecha glaucomatosa; no diagnostica glaucoma. El glaucoma requiere campo visual, OCT, presion intraocular, historia clinica y exploracion oftalmologica.
-- La localizacion ROI usa un localizador robusto con guarda que solo interviene cuando el metodo original falla, evitando reentrenar; su efecto esta cuantificado en la auditoria ROI del punto 13.
-- El punto operativo principal (`sensitivity_at_least_0.85`) prioriza sensibilidad (cribado); Youden es la alternativa equilibrada.
-- No se modifica la arquitectura del modelo (U-Net + InceptionResNetV2) ni el ensemble de 5 folds.
-- El indicador ISNT es simplificado y no sustituye una evaluacion oftalmologica completa.
-- Validacion limitada a REFUGE; no validado en otras camaras, poblaciones ni condiciones de adquisicion.
+- Estima biomarcadores asociados a sospecha glaucomatosa; **no diagnostica glaucoma**.
+- **Sesgo de vCDR (+0.077)** corregido post-hoc para MAE/interpretabilidad (no para AUC, por ser monótona); el margen real está en la segmentación de copa.
+- Localización ROI mediante localizador robusto con guarda; un sistema de producción usaría un detector dedicado.
+- Punto operativo principal `sensitivity_at_least_0.85` (cribado, prioriza sensibilidad); Youden como alternativa equilibrada.
+- Arquitectura U-Net + InceptionResNetV2 y ensemble de 5 folds sin cambios.
+- Indicador ISNT simplificado; no sustituye una evaluación oftalmológica completa.
+- Validación limitada a REFUGE; **datos externos excluidos** por riesgo de fuga, domain shift y comparabilidad del benchmark (ver sección 23 de la documentación). No validado en otras cámaras, poblaciones ni condiciones de adquisición.
