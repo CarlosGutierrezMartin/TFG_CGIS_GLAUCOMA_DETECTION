@@ -1,31 +1,32 @@
-# TFG CGIS - Deteccion de glaucoma mediante segmentacion disco-copa
+# TFG CGIS - Segmentacion disco-copa y estimacion de biomarcadores asociados a sospecha glaucomatosa
 
 ## Objetivo
 
-Este repositorio contiene el notebook principal del TFG para deteccion asistida de glaucoma a partir de imagenes de fondo de ojo del dataset REFUGE. El sistema segmenta disco optico y copa optica mediante U-Net con backbone `inceptionresnetv2`, extrae biomarcadores clinicos simplificados y valida el riesgo glaucomatoso sobre un conjunto externo reservado.
+Este repositorio contiene el notebook principal del TFG. Es un sistema de **segmentacion de disco optico y copa optica** (U-Net con backbone `inceptionresnetv2`) y de **estimacion de biomarcadores morfologicos** (`vCDR` y derivados) **asociados a sospecha glaucomatosa**, evaluado sobre el dataset REFUGE con validacion externa reservada. **No es un sistema de diagnostico automatico de glaucoma**: el diagnostico requiere campo visual, OCT, presion intraocular, historia clinica y exploracion oftalmologica.
 
 La reorganizacion actual prioriza reproducibilidad, trazabilidad metodologica y ausencia de fuga de datos entre entrenamiento y validacion externa.
 
 ## Estructura principal
 
-- `TFG_CGIS_GLAUCOMA_DETECTION/TFG_GLAUCOMA_v2_0.ipynb`: notebook tecnico reorganizado.
+- `TFG_CGIS_GLAUCOMA_DETECTION/TFG_GLAUCOMA_v3_0.ipynb`: notebook tecnico principal.
 - `TFG_CGIS_GLAUCOMA_DETECTION/README.md`: documento interno breve del subproyecto.
 
-El notebook queda organizado en trece bloques:
+El notebook queda organizado en catorce bloques:
 
 1. Configuracion del entorno
 2. Carga y preparacion del dataset
 3. Protocolo experimental y preprocesamiento
 4. Construccion del pipeline de entrenamiento
 5. Definicion del modelo
-6. Entrenamiento K-Fold
+6. Entrenamiento K-Fold del modelo de segmentacion disco-copa
 7. Carga y verificacion de modelos entrenados
 8. Inferencia y segmentacion
 9. Extraccion de biomarcadores clinicos
 10. Validacion externa
-11. Estudio de ablacion
-12. Validacion visual
-13. Resumen final del experimento
+11. Calibracion clinica y estudio de ablacion
+12. Evaluacion final y comparacion de puntos operativos en REFUGE-Test400
+13. Analisis visual de errores y auditoria tecnica de ROI/GT
+14. Resumen final del experimento y exportacion de resultados
 
 ## Rutas esperadas en Google Drive
 
@@ -110,7 +111,7 @@ El umbral clinico `0.52` se mantiene como criterio heuristico. Antes de presenta
 
 ## Ejecucion en Colab
 
-1. Abrir `TFG_CGIS_GLAUCOMA_DETECTION/TFG_GLAUCOMA_v2_0.ipynb`.
+1. Abrir `TFG_CGIS_GLAUCOMA_DETECTION/TFG_GLAUCOMA_v3_0.ipynb`.
 2. Ejecutar configuracion del entorno.
 3. Montar Drive, copiar `Refuge.rar`, descomprimir y validar estructura.
 4. Indexar `train_data` y `external_val_data`.
@@ -152,7 +153,9 @@ Las metricas actuales no deben considerarse definitivas hasta recalcularlas con 
 
 ## Limitaciones
 
-- No se modifica la arquitectura del modelo en esta reorganizacion.
-- No se renombran rutas, carpetas ni archivos para mantener compatibilidad con Google Drive.
-- Streamlit queda fuera del flujo experimental principal hasta cerrar entrenamiento, validacion externa, score final y umbral clinico.
+- El sistema estima biomarcadores asociados a sospecha glaucomatosa; no diagnostica glaucoma. El glaucoma requiere campo visual, OCT, presion intraocular, historia clinica y exploracion oftalmologica.
+- La localizacion ROI usa un localizador robusto con guarda que solo interviene cuando el metodo original falla, evitando reentrenar; su efecto esta cuantificado en la auditoria ROI del punto 13.
+- El punto operativo principal (`sensitivity_at_least_0.85`) prioriza sensibilidad (cribado); Youden es la alternativa equilibrada.
+- No se modifica la arquitectura del modelo (U-Net + InceptionResNetV2) ni el ensemble de 5 folds.
 - El indicador ISNT es simplificado y no sustituye una evaluacion oftalmologica completa.
+- Validacion limitada a REFUGE; no validado en otras camaras, poblaciones ni condiciones de adquisicion.
