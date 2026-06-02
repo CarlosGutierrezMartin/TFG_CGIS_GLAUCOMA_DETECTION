@@ -1,0 +1,23 @@
+# Artefactos del modelo y dataset (se colocan localmente, no se versionan).
+artifacts/
+*.keras
+*.h5
+
+# Dataset REFUGE
+Refuge/
+Refuge.zip
+Test400/
+REFUGE-*/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+env/
+.ipynb_checkpoints/
+
+# Resultados/locales
+*.log
+.DS_Store
