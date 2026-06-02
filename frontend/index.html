@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TFG: Detección Temprana de Glaucoma — API REST</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            color: #2c3e50;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 2rem;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+            color: #1a5490;
+        }
+
+        header p {
+            font-size: 0.95rem;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* Status bar */
+        .status-bar {
+            display: flex;
+            gap: 1.5rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+            font-size: 0.9rem;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ccc;
+        }
+
+        .status-dot.active {
+            background: #27ae60;
+        }
+
+        .status-dot.loading {
+            background: #f39c12;
+            animation: pulse 1s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Main content */
+        .main {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .main {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Control panel */
+        .control-panel {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            height: fit-content;
+        }
+
+        .control-panel h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            color: #1a5490;
+            border-bottom: 2px solid #e8ecf1;
+            padding-bottom: 0.5rem;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 2rem;
+        }
+
+        button {
+            flex: 1;
+            padding: 0.75rem 1.5rem;
+            font-size: 1rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: #1a5490;
+            color: white;
+        }
+
+        .btn-primary:hover:not(:disabled) {
+            background: #144070;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(26, 84, 144, 0.3);
+        }
+
+        .btn-secondary {
+            background: #e8ecf1;
+            color: #2c3e50;
+        }
+
+        .btn-secondary:hover:not(:disabled) {
+            background: #d5dce5;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .info-section {
+            margin-bottom: 1.5rem;
+        }
+
+        .info-section h3 {
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            color: #2c3e50;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #f0f2f5;
+            font-size: 0.9rem;
+        }
+
+        .info-row label {
+            color: #666;
+        }
+
+        .info-row value {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .info-row.highlight {
+            background: #f0f7ff;
+            padding: 0.5rem;
+            border-radius: 4px;
+            border-bottom: none;
+        }
+
+        /* Risk band styling */
+        .risk-band {
+            padding: 1rem;
+            border-radius: 6px;
+            text-align: center;
+            font-weight: 600;
+            margin: 1rem 0;
+        }
+
+        .risk-band.low {
+            background: #d5f4e6;
+            color: #27ae60;
+            border-left: 4px solid #27ae60;
+        }
+
+        .risk-band.intermediate {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 4px solid #ffc107;
+        }
+
+        .risk-band.moderate {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 4px solid #dc3545;
+        }
+
+        /* Results section */
+        .results-section {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+
+        .results-section h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            color: #1a5490;
+            border-bottom: 2px solid #e8ecf1;
+            padding-bottom: 0.5rem;
+        }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 768px) {
+            .image-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .image-card {
+            text-align: center;
+        }
+
+        .image-card h3 {
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .image-container {
+            width: 100%;
+            max-width: 300px;
+            margin: 0 auto;
+            background: #f5f7fa;
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid #e8ecf1;
+        }
+
+        .image-container img {
+            width: 100%;
+            height: auto;
+            display: block;
+        }
+
+        /* Biomarkers table */
+        .biomarkers-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            margin: 1.5rem 0;
+        }
+
+        .biomarkers-table th {
+            background: #f5f7fa;
+            padding: 0.75rem;
+            text-align: left;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 2px solid #e8ecf1;
+        }
+
+        .biomarkers-table td {
+            padding: 0.75rem;
+            border-bottom: 1px solid #e8ecf1;
+        }
+
+        .biomarkers-table tr:hover {
+            background: #f9fafb;
+        }
+
+        .biomarkers-table .value {
+            font-weight: 600;
+            color: #1a5490;
+        }
+
+        /* Decision box */
+        .decision-box {
+            background: #f0f7ff;
+            border-left: 4px solid #1a5490;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        .decision-box.correct {
+            background: #d5f4e6;
+            border-left-color: #27ae60;
+        }
+
+        .decision-box.incorrect {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+        }
+
+        .decision-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+        }
+
+        .decision-item label {
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .decision-item value {
+            color: #555;
+        }
+
+        /* Quality metrics */
+        .quality-metrics {
+            background: #f5f7fa;
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .quality-metrics h4 {
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+
+        .quality-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.35rem 0;
+        }
+
+        .quality-item.valid {
+            color: #27ae60;
+        }
+
+        .quality-item.invalid {
+            color: #dc3545;
+        }
+
+        /* Disclaimer */
+        .disclaimer {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 1rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #856404;
+            line-height: 1.6;
+            margin-top: 2rem;
+        }
+
+        /* Loading state */
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f0f2f5;
+            border-top: 3px solid #1a5490;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: #999;
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+
+        /* Error state */
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 6px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .error-message.active {
+            display: block;
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            margin-top: 3rem;
+            padding: 2rem;
+            color: #666;
+            font-size: 0.85rem;
+        }
+
+        footer a {
+            color: #1a5490;
+            text-decoration: none;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 TFG: Detección Temprana de Glaucoma</h1>
+            <p>
+                API REST basada en ensemble U-Net (InceptionResNetV2, 5-fold) para segmentación de disco óptico y copa,
+                extracción de biomarcadores y estimación de probabilidad calibrada de sospecha glaucomatosa.
+            </p>
+
+            <div class="status-bar">
+                <div class="status-item">
+                    <div class="status-dot" id="apiStatus"></div>
+                    <span>API: <strong id="apiStatusText">inicializando</strong></span>
+                </div>
+                <div class="status-item">
+                    <span>Modelos: <strong id="modelsCount">-</strong></span>
+                </div>
+                <div class="status-item">
+                    <span>Casos Test400: <strong id="caseCount">-</strong></span>
+                </div>
+                <div class="status-item">
+                    <span>Umbral: <strong id="thresholdValue">-</strong></span>
+                </div>
+            </div>
+        </header>
+
+        <div class="main">
+            <!-- Control Panel -->
+            <div class="control-panel">
+                <h2>🎮 Control</h2>
+
+                <div class="error-message" id="errorMessage"></div>
+
+                <div class="btn-group">
+                    <button class="btn-primary" id="randomBtn" onclick="fetchRandom()">
+                        Caso Aleatorio
+                    </button>
+                </div>
+
+                <div class="info-section">
+                    <h3>📋 Información del Caso</h3>
+                    <div class="info-row">
+                        <label>Imagen:</label>
+                        <value id="imageName">—</value>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>📊 Probabilidad</h3>
+                    <div class="info-row highlight">
+                        <label>Puntuación:</label>
+                        <value id="probability">—</value>
+                    </div>
+                    <div id="riskBandContainer"></div>
+                    <div class="info-row">
+                        <label>Interpretación:</label>
+                        <value id="riskMessage" style="font-size: 0.85rem; line-height: 1.4;">—</value>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>🎯 Decisión</h3>
+                    <div class="info-row">
+                        <label>Predicción:</label>
+                        <value id="predictionLabel">—</value>
+                    </div>
+                    <div class="info-row">
+                        <label>Etiqueta Real:</label>
+                        <value id="trueLabel">—</value>
+                    </div>
+                    <div class="info-row highlight">
+                        <label>Acierto:</label>
+                        <value id="correctness">—</value>
+                    </div>
+                </div>
+
+                <div class="info-section">
+                    <h3>✓ Validez</h3>
+                    <div class="info-row">
+                        <label>Disco encontrado:</label>
+                        <value id="discFound">—</value>
+                    </div>
+                    <div class="info-row">
+                        <label>Copa encontrada:</label>
+                        <value id="cupFound">—</value>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Results Section -->
+            <div class="results-section">
+                <h2>📸 Resultados</h2>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    <p>Procesando caso...</p>
+                </div>
+
+                <div class="empty-state" id="emptyState">
+                    <p>Haz clic en "Caso Aleatorio" para comenzar</p>
+                </div>
+
+                <div id="resultsContainer" style="display: none;">
+                    <div class="image-grid">
+                        <div class="image-card">
+                            <h3>Imagen Original</h3>
+                            <div class="image-container">
+                                <img id="originalImage" alt="Imagen original">
+                            </div>
+                        </div>
+                        <div class="image-card">
+                            <h3>Overlay GT</h3>
+                            <div class="image-container">
+                                <img id="gtOverlay" alt="Overlay ground truth">
+                            </div>
+                        </div>
+                        <div class="image-card">
+                            <h3>Overlay Predicción</h3>
+                            <div class="image-container">
+                                <img id="predOverlay" alt="Overlay predicción">
+                            </div>
+                        </div>
+                    </div>
+
+                    <table class="biomarkers-table">
+                        <thead>
+                            <tr>
+                                <th>Biomarcador</th>
+                                <th>Valor Predicho</th>
+                                <th>Valor Real (GT)</th>
+                                <th>Diferencia</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>vCDR (vertical)</strong></td>
+                                <td class="value" id="predVCDR">—</td>
+                                <td class="value" id="gtVCDR">—</td>
+                                <td class="value" id="diffVCDR">—</td>
+                            </tr>
+                            <tr>
+                                <td><strong>vCDR Corregido</strong></td>
+                                <td class="value" id="predVCDRCorr">—</td>
+                                <td>—</td>
+                                <td>—</td>
+                            </tr>
+                            <tr>
+                                <td><strong>hCDR (horizontal)</strong></td>
+                                <td class="value" id="predHCDR">—</td>
+                                <td>—</td>
+                                <td>—</td>
+                            </tr>
+                            <tr>
+                                <td><strong>rCDR (área, raíz)</strong></td>
+                                <td class="value" id="predRCDR">—</td>
+                                <td>—</td>
+                                <td>—</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Area CDR</strong></td>
+                                <td class="value" id="predAreaCDR">—</td>
+                                <td>—</td>
+                                <td>—</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Ratio Rim/Disc</strong></td>
+                                <td class="value" id="predRimDisc">—</td>
+                                <td>—</td>
+                                <td>—</td>
+                            </tr>
+                            <tr>
+                                <td><strong>ISNT-like</strong></td>
+                                <td class="value" id="predISNT">—</td>
+                                <td>—</td>
+                                <td>—</td>
+                            </tr>
+                        </tbody>
+                    </table>
+
+                    <div id="decisionBox" class="decision-box">
+                        <div class="decision-item">
+                            <label>Umbral de decisión:</label>
+                            <value id="thresholdDisp">—</value>
+                        </div>
+                        <div class="decision-item">
+                            <label>Score calibrado:</label>
+                            <value id="decisionScore">—</value>
+                        </div>
+                    </div>
+
+                    <div class="quality-metrics">
+                        <h4>Métricas de Calidad</h4>
+                        <div class="quality-item" id="entropyItem">
+                            Entropía media: <value id="meanEntropy">—</value>
+                        </div>
+                        <div class="quality-item" id="anatomyItem">
+                            Anatomía válida: <value id="validAnatomy">—</value>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="disclaimer" id="disclaimer" style="display: none;">
+                    <strong>⚠️ Aviso Clínico:</strong> Este sistema es una herramienta de cribado y detección temprana de signos asociados a sospecha glaucomatosa.
+                    <strong>No constituye diagnóstico.</strong> El diagnóstico de glaucoma requiere evaluación oftalmológica completa (campo visual, OCT, presión
+                    intraocular, historia clínica). Su uso debe ser complementario a la práctica clínica estándar.
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>
+                TFG — Detección Temprana de Glaucoma mediante Deep Learning | API REST (FastAPI) |
+                <a href="https://github.com/carlosgutierrezmartin/tfg_cgis_glaucoma_detection" target="_blank">Repositorio</a>
+            </p>
+        </footer>
+    </div>
+
+    <script>
+        const API_BASE = "http://127.0.0.1:8000";
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            checkHealth();
+        });
+
+        async function checkHealth() {
+            try {
+                const response = await fetch(`${API_BASE}/health`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const data = await response.json();
+
+                // Update status
+                document.getElementById('apiStatus').classList.add('active');
+                document.getElementById('apiStatusText').textContent = 'conectada';
+                document.getElementById('modelsCount').textContent = data.models_loaded || '-';
+                document.getElementById('caseCount').textContent = data.n_test_cases || '-';
+                document.getElementById('thresholdValue').textContent =
+                    data.calibration_params?.threshold?.toFixed(3) || '-';
+
+                // Enable button
+                document.getElementById('randomBtn').disabled = false;
+            } catch (error) {
+                document.getElementById('apiStatus').classList.add('active');
+                document.getElementById('apiStatusText').textContent = 'error de conexión';
+                document.getElementById('apiStatusText').style.color = '#dc3545';
+                showError(`No se puede conectar a la API: ${error.message}`);
+                document.getElementById('randomBtn').disabled = true;
+            }
+        }
+
+        async function fetchRandom() {
+            const btn = document.getElementById('randomBtn');
+            btn.disabled = true;
+
+            document.getElementById('loading').classList.add('active');
+            document.getElementById('emptyState').style.display = 'none';
+            document.getElementById('resultsContainer').style.display = 'none';
+            clearError();
+
+            try {
+                const response = await fetch(`${API_BASE}/api/test-cases/random`);
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+                const data = await response.json();
+                displayResults(data);
+            } catch (error) {
+                showError(`Error al obtener caso: ${error.message}`);
+                document.getElementById('emptyState').style.display = 'block';
+            } finally {
+                document.getElementById('loading').classList.remove('active');
+                btn.disabled = false;
+            }
+        }
+
+        function displayResults(data) {
+            // Image name
+            document.getElementById('imageName').textContent = data.image_name || '—';
+
+            // Probability
+            const prob = data.probability_percent?.toFixed(1) || '—';
+            document.getElementById('probability').textContent = `${prob}%`;
+
+            // Risk band
+            const riskBand = data.risk_band || '—';
+            const riskMsg = data.risk_message || '—';
+            const riskBandHtml = `<div class="risk-band ${riskBand}">${riskBand.toUpperCase()}</div>`;
+            document.getElementById('riskBandContainer').innerHTML = riskBandHtml;
+            document.getElementById('riskMessage').textContent = riskMsg;
+
+            // Decision
+            const predLabel = data.decision?.predicted_label === 1 ? 'Glaucoma' : 'Sano';
+            const trueLabel = data.ground_truth?.true_label === 1 ? 'Glaucoma' : 'Sano';
+            const correct = data.decision?.correct === true ? 'Sí ✓' : 'No ✗';
+            const correctClass = data.decision?.correct === true ? 'correct' : 'incorrect';
+
+            document.getElementById('predictionLabel').textContent = predLabel;
+            document.getElementById('trueLabel').textContent = trueLabel;
+            document.getElementById('correctness').textContent = correct;
+            document.getElementById('correctness').parentElement.classList = `info-row highlight ${correctClass}`;
+
+            // Quality
+            const discFound = data.quality?.disc_found ? 'Sí' : 'No';
+            const cupFound = data.quality?.cup_found ? 'Sí' : 'No';
+            document.getElementById('discFound').textContent = discFound;
+            document.getElementById('cupFound').textContent = cupFound;
+
+            // Images
+            const origImg = data.images?.original;
+            const gtOverlay = data.images?.ground_truth_overlay;
+            const predOverlay = data.images?.prediction_overlay;
+
+            if (origImg) {
+                document.getElementById('originalImage').src = `data:image/png;base64,${origImg}`;
+            }
+            if (gtOverlay) {
+                document.getElementById('gtOverlay').src = `data:image/png;base64,${gtOverlay}`;
+            }
+            if (predOverlay) {
+                document.getElementById('predOverlay').src = `data:image/png;base64,${predOverlay}`;
+            }
+
+            // Biomarkers
+            const fmt = (val) => val !== null && val !== undefined ? parseFloat(val).toFixed(3) : '—';
+            const biomarkers = data.biomarkers || {};
+
+            document.getElementById('predVCDR').textContent = fmt(biomarkers.vCDR);
+            document.getElementById('gtVCDR').textContent = fmt(data.ground_truth?.true_vCDR);
+            document.getElementById('diffVCDR').textContent =
+                biomarkers.vCDR && data.ground_truth?.true_vCDR ?
+                fmt(Math.abs(biomarkers.vCDR - data.ground_truth.true_vCDR)) : '—';
+
+            document.getElementById('predVCDRCorr').textContent = fmt(biomarkers.vCDR_corrected);
+            document.getElementById('predHCDR').textContent = fmt(biomarkers.hCDR);
+            document.getElementById('predRCDR').textContent = fmt(biomarkers.rCDR);
+            document.getElementById('predAreaCDR').textContent = fmt(biomarkers.area_CDR);
+            document.getElementById('predRimDisc').textContent = fmt(biomarkers.rim_to_disc_ratio);
+            document.getElementById('predISNT').textContent = fmt(biomarkers.isnt_like_risk);
+
+            // Decision box
+            document.getElementById('decisionBox').className = `decision-box ${correctClass}`;
+            document.getElementById('thresholdDisp').textContent = fmt(data.decision?.threshold);
+            document.getElementById('decisionScore').textContent = fmt(data.decision?.score);
+
+            // Quality metrics
+            document.getElementById('meanEntropy').textContent = fmt(data.quality?.mean_entropy);
+            const anatomyValid = data.quality?.valid_anatomy ? '✓ Válida' : '✗ Inválida';
+            document.getElementById('validAnatomy').textContent = anatomyValid;
+            document.getElementById('validAnatomy').parentElement.className =
+                `quality-item ${data.quality?.valid_anatomy ? 'valid' : 'invalid'}`;
+
+            // Show results
+            document.getElementById('resultsContainer').style.display = 'block';
+            document.getElementById('disclaimer').style.display = 'block';
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.textContent = message;
+            errorEl.classList.add('active');
+        }
+
+        function clearError() {
+            const errorEl = document.getElementById('errorMessage');
+            errorEl.classList.remove('active');
+        }
+    </script>
+</body>
+</html>
