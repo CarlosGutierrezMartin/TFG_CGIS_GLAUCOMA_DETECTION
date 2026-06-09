@@ -1,0 +1,53 @@
+# Local artifacts and datasets
+artifacts/
+Refuge/
+Refuge.zip
+Test400/
+REFUGE-*/
+Models*/
+*.keras
+*.h5
+*.hdf5
+*.ckpt
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+.venv*/
+venv/
+env/
+
+# Notebooks
+.ipynb_checkpoints/
+*.backup.ipynb
+*.pre_retrain.backup.ipynb
+TFG_GLAUCOMA_v*.ipynb
+!TFG_GLAUCOMA_v7.0.ipynb
+
+# Local exports and editor state
+colab_export/
+figures/
+.vscode/
+.idea/
+
+# OS and logs
+.DS_Store
+*.log
+*.tmp
+*.bak
+
+# Environment files
+.env
+.env.*
+!.env.example

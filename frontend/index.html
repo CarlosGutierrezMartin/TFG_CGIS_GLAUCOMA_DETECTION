@@ -1,0 +1,1202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cribado de glaucoma | TFG CGIS</title>
+    <style>
+        :root {
+            color-scheme: light;
+            --bg: #eef2f7;
+            --bg-grad: radial-gradient(1200px 600px at 15% -10%, #ffffff 0%, #eef2f7 55%, #e7edf4 100%);
+            --surface: #ffffff;
+            --surface-2: #f7f9fc;
+            --soft: #eef3f8;
+            --line: #dde5ee;
+            --line-soft: #e9eef4;
+            --text: #0f1b2d;
+            --muted: #5b6b7e;
+            --muted-2: #7f8da0;
+            --accent: #0f6e8c;
+            --accent-dark: #0b5266;
+            --accent-soft: #e3f0f4;
+            --low: #0f8a5f;
+            --low-bg: #e4f5ec;
+            --mid: #a9760a;
+            --mid-bg: #fdf0d4;
+            --high: #c0392b;
+            --high-bg: #fbe6e3;
+            --shadow-sm: 0 1px 2px rgba(15, 27, 45, 0.06), 0 4px 12px rgba(15, 27, 45, 0.05);
+            --shadow-md: 0 10px 30px rgba(15, 27, 45, 0.10);
+            --shadow-lg: 0 24px 64px rgba(15, 27, 45, 0.18);
+            --radius: 16px;
+            --radius-sm: 11px;
+            --fundus: #0b1422;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; }
+
+        [hidden] { display: none !important; }
+
+        html, body {
+            margin: 0;
+            width: 100%;
+            min-height: 100%;
+        }
+
+        body {
+            background: var(--bg);
+            background-image: var(--bg-grad);
+            background-attachment: fixed;
+            color: var(--text);
+            font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+        }
+
+        body.no-scroll { overflow: hidden; }
+
+        button { font: inherit; color: inherit; }
+
+        :focus-visible {
+            outline: 3px solid rgba(15, 110, 140, 0.35);
+            outline-offset: 2px;
+            border-radius: 6px;
+        }
+
+        .app {
+            min-height: 100dvh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ───── Topbar ───── */
+        .topbar {
+            position: sticky;
+            top: 0;
+            z-index: 30;
+            border-bottom: 1px solid var(--line);
+            background: rgba(248, 250, 252, 0.82);
+            backdrop-filter: saturate(160%) blur(14px);
+            -webkit-backdrop-filter: saturate(160%) blur(14px);
+        }
+
+        .topbar-inner {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 12px 22px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+        .brand-mark {
+            flex: 0 0 auto;
+            width: 38px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            border-radius: 11px;
+            background: linear-gradient(150deg, var(--accent) 0%, var(--accent-dark) 100%);
+            box-shadow: 0 6px 16px rgba(11, 82, 102, 0.30);
+        }
+        .brand-mark svg { width: 22px; height: 22px; display: block; }
+
+        .brand-text { min-width: 0; }
+        .brand-text h1 {
+            margin: 0;
+            font-size: 1.02rem;
+            font-weight: 760;
+            letter-spacing: -0.01em;
+            line-height: 1.15;
+            white-space: nowrap;
+        }
+        .brand-text p {
+            margin: 2px 0 0;
+            color: var(--muted);
+            font-size: 0.78rem;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .toolbar {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            min-width: 0;
+        }
+
+        .status-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            height: 38px;
+            padding: 0 13px;
+            border: 1px solid var(--line);
+            border-radius: 999px;
+            background: var(--surface);
+            color: var(--muted);
+            font-size: 0.82rem;
+            font-weight: 600;
+            white-space: nowrap;
+            box-shadow: var(--shadow-sm);
+        }
+        .status-pill strong { color: var(--text); font-weight: 680; }
+        .status-dot {
+            width: 9px; height: 9px; border-radius: 50%;
+            background: #9aa7b5; flex: 0 0 auto;
+        }
+        .status-dot.loading { background: var(--mid); animation: pulse 1.1s ease-in-out infinite; }
+        .status-dot.ready { background: var(--low); box-shadow: 0 0 0 4px rgba(15, 138, 95, 0.16); }
+        .status-dot.error { background: var(--high); }
+        @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .4 } }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            height: 40px;
+            padding: 0 16px;
+            border: 1px solid transparent;
+            border-radius: 11px;
+            font-weight: 640;
+            font-size: 0.9rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .16s ease, border-color .16s ease, transform .12s ease, box-shadow .16s ease, color .16s ease;
+        }
+        .btn svg { width: 17px; height: 17px; flex: 0 0 auto; }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #fff;
+            box-shadow: 0 8px 20px rgba(15, 110, 140, 0.26);
+        }
+        .btn-primary:hover:not(:disabled) { background: var(--accent-dark); transform: translateY(-1px); }
+        .btn-primary:active:not(:disabled) { transform: translateY(0); }
+
+        .btn-ghost {
+            background: var(--surface);
+            color: var(--text);
+            border-color: var(--line);
+            box-shadow: var(--shadow-sm);
+        }
+        .btn-ghost:hover:not(:disabled) { background: var(--soft); }
+
+        .btn-icon { padding: 0 13px; }
+
+        .btn:disabled { opacity: .5; cursor: not-allowed; box-shadow: none; transform: none; }
+
+        .spinner {
+            width: 16px; height: 16px;
+            border: 2px solid rgba(255,255,255,.45);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin .8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg) } }
+
+        /* ───── Main layout ───── */
+        .main {
+            flex: 1;
+            width: 100%;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 22px 22px 30px;
+        }
+
+        .error-banner {
+            margin: 0 0 16px;
+            padding: 13px 16px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            border: 1px solid #eab8b1;
+            border-left: 4px solid var(--high);
+            border-radius: var(--radius-sm);
+            background: var(--high-bg);
+            color: #8a2a1e;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            box-shadow: var(--shadow-sm);
+        }
+        .error-banner.active { display: flex; }
+        .error-banner svg { width: 18px; height: 18px; flex: 0 0 auto; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: minmax(360px, 0.92fr) minmax(0, 1.25fr);
+            gap: 20px;
+            align-items: start;
+        }
+
+        .card {
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            background: var(--surface);
+            box-shadow: var(--shadow-md);
+        }
+
+        /* ───── Result card ───── */
+        .result-card { padding: 24px 24px 22px; }
+
+        .card-head {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 4px;
+        }
+        .kicker {
+            margin: 0;
+            color: var(--accent);
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.09em;
+            text-transform: uppercase;
+        }
+        .case-name {
+            margin: 5px 0 0;
+            color: var(--muted);
+            font-size: 0.86rem;
+            line-height: 1.35;
+        }
+        .case-name strong { color: var(--text); font-weight: 660; }
+
+        .risk-badge {
+            flex: 0 0 auto;
+            display: inline-flex;
+            align-items: center;
+            gap: 7px;
+            height: 30px;
+            padding: 0 13px;
+            border-radius: 999px;
+            background: var(--soft);
+            color: var(--muted);
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .risk-badge::before {
+            content: "";
+            width: 8px; height: 8px; border-radius: 50%;
+            background: currentColor;
+        }
+        .risk-badge.baja { background: var(--low-bg); color: var(--low); }
+        .risk-badge.intermedia { background: var(--mid-bg); color: var(--mid); }
+        .risk-badge.moderada { background: var(--high-bg); color: var(--high); }
+
+        /* Gauge */
+        .gauge-wrap {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 14px 0 8px;
+        }
+        .gauge {
+            position: relative;
+            width: 208px;
+            height: 208px;
+        }
+        .gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .gauge-track { fill: none; stroke: var(--soft); stroke-width: 13; }
+        .gauge-value {
+            fill: none;
+            stroke: transparent;
+            stroke-width: 13;
+            stroke-linecap: round;
+            transition: stroke-dashoffset .9s cubic-bezier(.22,.61,.36,1), stroke .4s ease;
+        }
+        .gauge.baja .gauge-value { stroke: var(--low); }
+        .gauge.intermedia .gauge-value { stroke: var(--mid); }
+        .gauge.moderada .gauge-value { stroke: var(--high); }
+
+        .gauge-center {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .gauge-pct {
+            display: flex;
+            align-items: baseline;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+            line-height: 1;
+            color: var(--text);
+        }
+        #probability { font-size: 3.5rem; }
+        .gauge-sign { font-size: 1.5rem; font-weight: 760; margin-left: 2px; color: var(--muted); }
+        .gauge-caption {
+            margin-top: 4px;
+            color: var(--muted);
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+        }
+
+        .verdict {
+            text-align: center;
+            margin: 2px 0 4px;
+            font-size: 1.16rem;
+            font-weight: 720;
+            letter-spacing: -0.01em;
+        }
+
+        .explanation {
+            margin: 12px 0 0;
+            padding: 14px 15px;
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+            color: var(--text);
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        .explanation .muted { color: var(--muted); }
+
+        .pred-row {
+            margin-top: 12px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+        .pred-cell {
+            padding: 11px 13px;
+            border: 1px solid var(--line-soft);
+            border-radius: var(--radius-sm);
+            background: var(--surface-2);
+        }
+        .pred-cell span {
+            display: block;
+            color: var(--muted);
+            font-size: 0.66rem;
+            font-weight: 800;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }
+        .pred-cell strong {
+            display: block;
+            margin-top: 4px;
+            font-size: 0.96rem;
+            font-weight: 680;
+            line-height: 1.25;
+        }
+
+        .disclaimer {
+            margin-top: 14px;
+            padding: 13px 14px 13px 15px;
+            display: flex;
+            gap: 11px;
+            border-left: 4px solid var(--mid);
+            border-radius: var(--radius-sm);
+            background: var(--mid-bg);
+            color: #5a420a;
+            font-size: 0.84rem;
+            line-height: 1.45;
+        }
+        .disclaimer svg { width: 19px; height: 19px; flex: 0 0 auto; margin-top: 1px; color: var(--mid); }
+        .disclaimer strong { display: block; margin-bottom: 2px; color: #3f2f08; font-weight: 720; }
+
+        /* ───── Visual card ───── */
+        .visual-card { padding: 20px 22px 22px; }
+
+        .visual-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            margin-bottom: 14px;
+        }
+        .visual-head h2 { margin: 0; font-size: 1.05rem; font-weight: 720; letter-spacing: -0.01em; }
+
+        .legend { display: flex; gap: 14px; color: var(--muted); font-size: 0.8rem; font-weight: 600; }
+        .legend span { display: inline-flex; align-items: center; gap: 6px; }
+        .legend i { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+        .legend .disc { background: #38c172; box-shadow: 0 0 0 2px rgba(56,193,114,.25); }
+        .legend .cup { background: #ef5350; box-shadow: 0 0 0 2px rgba(239,83,80,.25); }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+
+        .frame { display: flex; flex-direction: column; gap: 8px; }
+        .frame-label {
+            display: flex;
+            align-items: center;
+            gap: 7px;
+            font-size: 0.82rem;
+            font-weight: 660;
+            color: var(--text);
+        }
+        .frame-label .tag {
+            font-size: 0.64rem;
+            font-weight: 800;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            color: var(--muted);
+        }
+        .stage {
+            position: relative;
+            aspect-ratio: 1 / 1;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            background: var(--fundus);
+            border: 1px solid var(--line);
+        }
+        .stage img {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+        .placeholder {
+            position: absolute;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            padding: 22px;
+            text-align: center;
+            color: #8b97a6;
+            font-size: 0.84rem;
+            line-height: 1.45;
+        }
+        .placeholder .ph-icon {
+            display: block;
+            margin: 0 auto 10px;
+            width: 34px; height: 34px;
+            opacity: .5;
+        }
+
+        .visual-foot {
+            margin-top: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--muted);
+            font-size: 0.8rem;
+            line-height: 1.4;
+        }
+        .visual-foot svg { width: 15px; height: 15px; flex: 0 0 auto; }
+
+        /* ───── Overlay / Modal / Drawer ───── */
+        .scrim {
+            position: fixed;
+            inset: 0;
+            z-index: 80;
+            background: rgba(8, 16, 28, 0.46);
+            backdrop-filter: blur(2px);
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity .2s ease, visibility .2s ease;
+        }
+        .scrim.active { opacity: 1; visibility: visible; }
+
+        .modal {
+            position: fixed;
+            left: 50%;
+            top: 50%;
+            z-index: 90;
+            width: min(960px, calc(100vw - 36px));
+            max-height: calc(100dvh - 48px);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            transform: translate(-50%, -50%) scale(0.97);
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+            background: var(--surface);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow-lg);
+            transition: opacity .2s ease, transform .2s ease, visibility .2s ease;
+        }
+        .modal.active { opacity: 1; visibility: visible; pointer-events: auto; transform: translate(-50%, -50%) scale(1); }
+
+        .drawer {
+            position: fixed;
+            top: 0; right: 0;
+            z-index: 90;
+            width: min(460px, 100vw);
+            height: 100dvh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: var(--surface);
+            border-left: 1px solid var(--line);
+            box-shadow: var(--shadow-lg);
+            transform: translateX(100%);
+            visibility: hidden;
+            transition: transform .26s cubic-bezier(.22,.61,.36,1), visibility .26s ease;
+        }
+        .drawer.active { transform: translateX(0); visibility: visible; }
+
+        .panel-head {
+            flex: 0 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 14px;
+            padding: 17px 20px;
+            border-bottom: 1px solid var(--line);
+            background: var(--surface);
+        }
+        .panel-head h2 { margin: 0; font-size: 1.08rem; font-weight: 720; letter-spacing: -0.01em; }
+        .panel-body { overflow: auto; padding: 20px; }
+
+        .close-btn {
+            flex: 0 0 auto;
+            width: 36px; height: 36px;
+            display: grid; place-items: center;
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            background: var(--surface);
+            cursor: pointer;
+            color: var(--muted);
+            transition: background .15s ease, color .15s ease;
+        }
+        .close-btn:hover { background: var(--soft); color: var(--text); }
+        .close-btn svg { width: 17px; height: 17px; }
+
+        /* Más modal content */
+        .detail-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
+        }
+        .detail-section { border: 1px solid var(--line); border-radius: var(--radius-sm); overflow: hidden; }
+        .detail-section.wide { grid-column: 1 / -1; }
+        .detail-section h3 {
+            margin: 0;
+            padding: 11px 14px;
+            background: var(--surface-2);
+            border-bottom: 1px solid var(--line);
+            font-size: 0.82rem;
+            font-weight: 720;
+            letter-spacing: 0.02em;
+        }
+        .metric-list { margin: 0; padding: 0; list-style: none; }
+        .metric-list li {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 10px 14px;
+            border-bottom: 1px solid var(--line-soft);
+            color: var(--muted);
+            font-size: 0.88rem;
+        }
+        .metric-list li:last-child { border-bottom: 0; }
+        .metric-list strong { color: var(--text); font-weight: 660; font-variant-numeric: tabular-nums; white-space: nowrap; }
+        .metric-list .ok { color: var(--low); }
+        .metric-list .no { color: var(--high); }
+
+        .gt-stage {
+            padding: 16px;
+            display: grid;
+            place-items: center;
+            background: var(--surface-2);
+        }
+        .gt-stage .stage { width: min(340px, 100%); }
+
+        /* Info drawer content */
+        .info-section { padding: 18px 0; border-bottom: 1px solid var(--line-soft); }
+        .info-section:first-child { padding-top: 0; }
+        .info-section:last-child { border-bottom: 0; }
+        .info-section h3 {
+            margin: 0 0 8px;
+            font-size: 0.98rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .info-section h3 svg { width: 17px; height: 17px; color: var(--accent); }
+        .info-section p { margin: 0; color: var(--muted); font-size: 0.9rem; line-height: 1.58; }
+        .info-section p + p { margin-top: 8px; }
+
+        .band-list { margin: 12px 0 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+        .band-list li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 9px 12px;
+            border-radius: var(--radius-sm);
+            font-size: 0.86rem;
+        }
+        .band-list .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+        .band-list .baja { background: var(--low-bg); color: #0c6e4b; }
+        .band-list .baja .dot { background: var(--low); }
+        .band-list .intermedia { background: var(--mid-bg); color: #7d5807; }
+        .band-list .intermedia .dot { background: var(--mid); }
+        .band-list .moderada { background: var(--high-bg); color: #9a2d22; }
+        .band-list .moderada .dot { background: var(--high); }
+        .band-list strong { font-weight: 720; }
+
+        .gloss { margin: 10px 0 0; padding: 0; list-style: none; display: grid; gap: 11px; }
+        .gloss li { font-size: 0.88rem; line-height: 1.5; color: var(--muted); }
+        .gloss strong { color: var(--text); font-weight: 680; }
+
+        /* ───── Responsive ───── */
+        @media (max-width: 940px) {
+            .grid { grid-template-columns: 1fr; }
+            .brand-text p { display: none; }
+        }
+        @media (max-width: 620px) {
+            .topbar-inner { flex-wrap: wrap; padding: 12px 16px; }
+            .toolbar { width: 100%; margin-left: 0; flex-wrap: wrap; }
+            .toolbar .btn { flex: 1 1 auto; }
+            .status-pill { order: -1; }
+            .main { padding: 16px 16px 24px; }
+            .result-card, .visual-card { padding: 18px; }
+            .image-grid { grid-template-columns: 1fr; }
+            .detail-grid { grid-template-columns: 1fr; }
+            .gauge { width: 178px; height: 178px; }
+            #probability { font-size: 3rem; }
+            .btn-label-full { display: none; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { transition: none !important; animation: none !important; }
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Topbar -->
+        <header class="topbar">
+            <div class="topbar-inner">
+                <div class="brand">
+                    <span class="brand-mark" aria-hidden="true">
+                        <svg viewBox="0 0 24 24" fill="none">
+                            <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="#fff" stroke-width="1.7"/>
+                            <circle cx="12" cy="12" r="3.4" stroke="#fff" stroke-width="1.7"/>
+                        </svg>
+                    </span>
+                    <div class="brand-text">
+                        <h1>Cribado de glaucoma</h1>
+                        <p>Detección temprana asistida sobre fondo de ojo</p>
+                    </div>
+                </div>
+
+                <div class="toolbar">
+                    <span class="status-pill" aria-live="polite">
+                        <span class="status-dot loading" id="apiStatus"></span>
+                        <span>API <strong id="apiStatusText">conectando</strong></span>
+                    </span>
+                    <button class="btn btn-primary" type="button" id="randomBtn">
+                        <span class="btn-icon-slot" id="randomBtnIcon" aria-hidden="true">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M4 4v6h6M20 20v-6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10a8 8 0 0 0-14.3-3.3M4 14a8 8 0 0 0 14.3 3.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        </span>
+                        <span id="randomBtnLabel">Caso aleatorio</span>
+                    </button>
+                    <button class="btn btn-ghost" type="button" id="moreBtn" disabled aria-haspopup="dialog">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                        <span class="btn-label-full">Más</span>
+                    </button>
+                    <button class="btn btn-ghost btn-icon" type="button" id="infoBtn" aria-label="Información sobre la página" aria-haspopup="dialog" aria-expanded="false" aria-controls="infoDrawer">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 11v5M12 7.5h.01" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Main -->
+        <main class="main">
+            <div class="error-banner" id="errorBanner" role="alert">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span id="errorText"></span>
+            </div>
+
+            <div class="grid">
+                <!-- Result -->
+                <section class="card result-card" aria-labelledby="resultKicker">
+                    <div class="card-head">
+                        <div>
+                            <p class="kicker" id="resultKicker">Resultado de cribado</p>
+                            <p class="case-name" id="caseName">Pulse <strong>Caso aleatorio</strong> para analizar una imagen.</p>
+                        </div>
+                        <span class="risk-badge" id="riskBadge">Pendiente</span>
+                    </div>
+
+                    <div class="gauge-wrap">
+                        <div class="gauge" id="gauge" role="img" aria-label="Probabilidad de signos compatibles con sospecha glaucomatosa">
+                            <svg viewBox="0 0 180 180">
+                                <circle class="gauge-track" cx="90" cy="90" r="78"></circle>
+                                <circle class="gauge-value" id="gaugeArc" cx="90" cy="90" r="78"></circle>
+                            </svg>
+                            <div class="gauge-center">
+                                <div class="gauge-pct"><span id="probability">--</span><span class="gauge-sign">%</span></div>
+                                <div class="gauge-caption">Probabilidad</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <p class="verdict" id="verdict">Sin caso analizado</p>
+
+                    <div class="explanation" id="explanation">
+                        <span class="muted">El porcentaje estima la compatibilidad morfológica con signos de sospecha glaucomatosa a partir de la segmentación de disco y copa. Pulse «Caso aleatorio» para comenzar.</span>
+                    </div>
+
+                    <div class="pred-row">
+                        <div class="pred-cell">
+                            <span>Predicción del modelo</span>
+                            <strong id="predictionLabel">—</strong>
+                        </div>
+                        <div class="pred-cell">
+                            <span>Calidad anatómica</span>
+                            <strong id="anatomyLabel">—</strong>
+                        </div>
+                    </div>
+
+                    <div class="disclaimer">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        <div>
+                            <strong>Herramienta de cribado, no un diagnóstico.</strong>
+                            La confirmación o el descarte de glaucoma requiere una evaluación oftalmológica completa.
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Visual -->
+                <section class="card visual-card" aria-labelledby="visualTitle">
+                    <div class="visual-head">
+                        <h2 id="visualTitle">Exploración visual</h2>
+                        <div class="legend" aria-label="Leyenda del overlay">
+                            <span><i class="disc"></i>Disco óptico</span>
+                            <span><i class="cup"></i>Copa</span>
+                        </div>
+                    </div>
+
+                    <div class="image-grid">
+                        <figure class="frame" style="margin:0">
+                            <figcaption class="frame-label"><span class="tag">Entrada</span> Imagen original</figcaption>
+                            <div class="stage">
+                                <div class="placeholder" id="originalPlaceholder">
+                                    <svg class="ph-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" stroke="#8b97a6" stroke-width="1.6"/><circle cx="9" cy="11" r="2" stroke="#8b97a6" stroke-width="1.6"/><path d="m4 18 5-4 4 3 3-2 4 3" stroke="#8b97a6" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                                    La imagen aparecerá al cargar un caso.
+                                </div>
+                                <img id="originalImage" alt="Fondo de ojo del caso analizado" hidden>
+                            </div>
+                        </figure>
+
+                        <figure class="frame" style="margin:0">
+                            <figcaption class="frame-label"><span class="tag">Modelo</span> Segmentación predicha</figcaption>
+                            <div class="stage">
+                                <div class="placeholder" id="predictionPlaceholder">
+                                    <svg class="ph-icon" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="8" stroke="#8b97a6" stroke-width="1.6"/><circle cx="12" cy="12" r="3.4" stroke="#8b97a6" stroke-width="1.6"/></svg>
+                                    El overlay de disco y copa aparecerá tras la inferencia.
+                                </div>
+                                <img id="predOverlay" alt="Overlay de la segmentación predicha de disco y copa" hidden>
+                            </div>
+                        </figure>
+                    </div>
+
+                    <p class="visual-foot">
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.7"/><path d="M12 11v5M12 7.5h.01" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                        El verde delimita el disco óptico y el rojo la copa. La relación entre ambos sustenta los biomarcadores (ver «Más»).
+                    </p>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- Scrim -->
+    <div class="scrim" id="scrim" tabindex="-1" aria-hidden="true"></div>
+
+    <!-- Más modal -->
+    <section class="modal" id="detailsModal" role="dialog" aria-modal="true" aria-labelledby="detailsTitle" aria-hidden="true">
+        <div class="panel-head">
+            <h2 id="detailsTitle">Información ampliada del caso</h2>
+            <button class="close-btn" type="button" data-close aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+            </button>
+        </div>
+        <div class="panel-body">
+            <div class="detail-grid">
+                <section class="detail-section">
+                    <h3>Biomarcadores</h3>
+                    <ul class="metric-list">
+                        <li><span>vCDR</span><strong id="detailVCDR">—</strong></li>
+                        <li><span>vCDR corregido</span><strong id="detailVCDRCorr">—</strong></li>
+                        <li><span>hCDR</span><strong id="detailHCDR">—</strong></li>
+                        <li><span>rCDR</span><strong id="detailRCDR">—</strong></li>
+                        <li><span>Área CDR</span><strong id="detailAreaCDR">—</strong></li>
+                        <li><span>Rim/Disc</span><strong id="detailRimDisc">—</strong></li>
+                        <li><span>ISNT-like</span><strong id="detailISNT">—</strong></li>
+                    </ul>
+                </section>
+
+                <section class="detail-section">
+                    <h3>Decisión y validación</h3>
+                    <ul class="metric-list">
+                        <li><span>Etiqueta real (GT)</span><strong id="detailTrueLabel">—</strong></li>
+                        <li><span>Predicción</span><strong id="detailPredLabel">—</strong></li>
+                        <li><span>Acierto frente a GT</span><strong id="detailCorrect">—</strong></li>
+                        <li><span>Score</span><strong id="detailScore">—</strong></li>
+                        <li><span>Umbral</span><strong id="detailThreshold">—</strong></li>
+                        <li><span>vCDR real</span><strong id="detailTrueVCDR">—</strong></li>
+                    </ul>
+                </section>
+
+                <section class="detail-section">
+                    <h3>Calidad de la segmentación</h3>
+                    <ul class="metric-list">
+                        <li><span>Entropía media</span><strong id="detailEntropy">—</strong></li>
+                        <li><span>Anatomía válida</span><strong id="detailValidAnatomy">—</strong></li>
+                        <li><span>Disco encontrado</span><strong id="detailDiscFound">—</strong></li>
+                        <li><span>Copa encontrada</span><strong id="detailCupFound">—</strong></li>
+                    </ul>
+                </section>
+
+                <section class="detail-section">
+                    <h3>Servicio</h3>
+                    <ul class="metric-list">
+                        <li><span>Modelos en ensemble</span><strong id="detailModels">—</strong></li>
+                        <li><span>Casos en test</span><strong id="detailCases">—</strong></li>
+                    </ul>
+                </section>
+
+                <section class="detail-section wide">
+                    <h3>Referencia anatómica (ground truth)</h3>
+                    <div class="gt-stage">
+                        <div class="stage">
+                            <div class="placeholder" id="gtPlaceholder">Sin overlay de referencia cargado.</div>
+                            <img id="gtOverlay" alt="Overlay de la segmentación de referencia (ground truth)" hidden>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </section>
+
+    <!-- Info drawer -->
+    <aside class="drawer" id="infoDrawer" role="dialog" aria-modal="true" aria-labelledby="infoTitle" aria-hidden="true">
+        <div class="panel-head">
+            <h2 id="infoTitle">Sobre esta herramienta</h2>
+            <button class="close-btn" type="button" data-close aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"/></svg>
+            </button>
+        </div>
+        <div class="panel-body">
+            <section class="info-section">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" stroke="currentColor" stroke-width="1.7"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="1.7"/></svg>
+                    Qué hace
+                </h3>
+                <p>Consulta una API local que segmenta el disco óptico y la copa en imágenes de fondo de ojo mediante un ensemble de redes U-Net. A partir de esos mapas calcula biomarcadores morfológicos y una probabilidad calibrada de signos compatibles con sospecha glaucomatosa.</p>
+            </section>
+
+            <section class="info-section">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 18 10 12l3 3 7-8" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Cómo interpretar el porcentaje
+                </h3>
+                <p>No es una probabilidad diagnóstica definitiva: resume la evidencia morfológica aprendida por el modelo. Valores bajos sugieren baja compatibilidad; valores intermedios aconsejan revisión; valores altos justifican priorizar la evaluación oftalmológica.</p>
+                <ul class="band-list">
+                    <li class="baja"><span class="dot"></span><strong>Baja</strong>&nbsp;— menos del 30 %</li>
+                    <li class="intermedia"><span class="dot"></span><strong>Intermedia</strong>&nbsp;— entre 30 % y 60 %</li>
+                    <li class="moderada"><span class="dot"></span><strong>Moderada</strong>&nbsp;— más del 60 %</li>
+                </ul>
+            </section>
+
+            <section class="info-section">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+                    Biomarcadores
+                </h3>
+                <ul class="gloss">
+                    <li><strong>vCDR:</strong> relación vertical copa/disco, el indicador más usado en glaucoma.</li>
+                    <li><strong>hCDR:</strong> relación horizontal copa/disco.</li>
+                    <li><strong>rCDR:</strong> raíz de la relación de áreas copa/disco.</li>
+                    <li><strong>Área CDR:</strong> proporción del área de la copa respecto al disco.</li>
+                    <li><strong>Rim/Disc:</strong> proporción del anillo neurorretiniano.</li>
+                    <li><strong>ISNT-like:</strong> indicador geométrico del patrón del anillo (regla ISNT).</li>
+                </ul>
+            </section>
+
+            <section class="info-section">
+                <h3>
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Límites clínicos
+                </h3>
+                <p>El sistema es una ayuda de cribado. El diagnóstico de glaucoma requiere historia clínica, presión intraocular, exploración oftalmológica, OCT y campo visual cuando proceda.</p>
+            </section>
+        </div>
+    </aside>
+
+    <script>
+        const API_BASE = window.location.protocol === "file:"
+            ? "http://127.0.0.1:8000"
+            : window.location.origin;
+
+        const GAUGE_R = 78;
+        const GAUGE_C = 2 * Math.PI * GAUGE_R;
+
+        let latestCase = null;
+        let activeLayer = null;
+        let lastFocused = null;
+        const els = {};
+
+        document.addEventListener("DOMContentLoaded", () => {
+            cacheElements();
+            initGauge();
+            bindEvents();
+            checkHealth();
+        });
+
+        function cacheElements() {
+            [
+                "apiStatus", "apiStatusText", "randomBtn", "randomBtnLabel", "randomBtnIcon",
+                "moreBtn", "infoBtn", "errorBanner", "errorText",
+                "caseName", "riskBadge", "gauge", "gaugeArc", "probability", "verdict",
+                "explanation", "predictionLabel", "anatomyLabel",
+                "originalImage", "predOverlay", "gtOverlay",
+                "originalPlaceholder", "predictionPlaceholder", "gtPlaceholder",
+                "scrim", "detailsModal", "infoDrawer",
+                "detailModels", "detailCases"
+            ].forEach((id) => { els[id] = document.getElementById(id); });
+        }
+
+        function initGauge() {
+            els.gaugeArc.style.strokeDasharray = `${GAUGE_C}`;
+            els.gaugeArc.style.strokeDashoffset = `${GAUGE_C}`;
+        }
+
+        function bindEvents() {
+            els.randomBtn.addEventListener("click", fetchRandom);
+            els.moreBtn.addEventListener("click", () => openLayer("detailsModal"));
+            els.infoBtn.addEventListener("click", () => openLayer("infoDrawer"));
+            els.scrim.addEventListener("click", () => closeActiveLayer());
+            document.querySelectorAll("[data-close]").forEach((b) => b.addEventListener("click", () => closeActiveLayer()));
+            document.addEventListener("keydown", (e) => {
+                if (e.key === "Escape" && activeLayer) closeActiveLayer();
+            });
+        }
+
+        async function checkHealth() {
+            setApiStatus("loading", "conectando");
+            els.randomBtn.disabled = true;
+            try {
+                const r = await fetch(`${API_BASE}/health`);
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                const d = await r.json();
+                setApiStatus("ready", "conectada");
+                els.detailModels.textContent = d.models_loaded ?? "—";
+                els.detailCases.textContent = d.n_test_cases ?? "—";
+                els.randomBtn.disabled = false;
+            } catch (err) {
+                setApiStatus("error", "sin conexión");
+                els.randomBtn.disabled = true;
+                showError(`No se puede conectar con la API local (${API_BASE}). Para probar la interfaz, arranque el servidor con "GLAUCOMA_API_MODE=demo uvicorn api.app:app --reload". Detalle: ${err.message}`);
+            }
+        }
+
+        async function fetchRandom() {
+            setLoading(true);
+            clearError();
+            try {
+                const r = await fetch(`${API_BASE}/api/test-cases/random`);
+                if (!r.ok) throw new Error(`HTTP ${r.status}`);
+                latestCase = await r.json();
+                renderCase(latestCase);
+            } catch (err) {
+                showError(`No se ha podido procesar el caso: ${err.message}`);
+            } finally {
+                setLoading(false);
+            }
+        }
+
+        function renderCase(data) {
+            const pct = Number(data.probability_percent);
+            const band = normalizeBand(data.risk_band);
+            const predLabel = labelFromValue(data.decision?.predicted_label);
+            const validAnatomy = data.quality?.valid_anatomy === true;
+
+            els.caseName.innerHTML = data.image_name
+                ? `Imagen analizada: <strong>${escapeHtml(data.image_name)}</strong>`
+                : "Imagen procesada";
+
+            els.riskBadge.textContent = band.label;
+            els.riskBadge.className = `risk-badge ${band.className}`;
+
+            setGauge(pct, band.className);
+            els.probability.textContent = Number.isFinite(pct) ? pct.toFixed(1) : "--";
+            els.gauge.setAttribute("aria-label",
+                `Probabilidad ${Number.isFinite(pct) ? pct.toFixed(1) + "%" : "no disponible"} — banda ${band.label.toLowerCase()}`);
+
+            els.verdict.textContent = band.verdict;
+            els.verdict.style.color = band.color;
+
+            els.explanation.innerHTML = explanationFor(pct, band, data.risk_message);
+            els.predictionLabel.textContent = predLabel;
+            els.anatomyLabel.textContent = validAnatomy ? "Válida" : "Revisar";
+            els.anatomyLabel.style.color = validAnatomy ? "var(--low)" : "var(--mid)";
+
+            els.moreBtn.disabled = false;
+
+            setImage(els.originalImage, els.originalPlaceholder, data.images?.original);
+            setImage(els.predOverlay, els.predictionPlaceholder, data.images?.prediction_overlay);
+            setImage(els.gtOverlay, els.gtPlaceholder, data.images?.ground_truth_overlay);
+            renderDetails(data);
+        }
+
+        function setGauge(pct, bandClass) {
+            const clamped = Number.isFinite(pct) ? Math.max(0, Math.min(100, pct)) : 0;
+            els.gauge.className = `gauge ${bandClass}`;
+            els.gaugeArc.style.strokeDashoffset = `${GAUGE_C * (1 - clamped / 100)}`;
+        }
+
+        function renderDetails(data) {
+            const b = data.biomarkers || {};
+            setText("detailVCDR", fmt(b.vCDR));
+            setText("detailVCDRCorr", fmt(b.vCDR_corrected));
+            setText("detailHCDR", fmt(b.hCDR));
+            setText("detailRCDR", fmt(b.rCDR));
+            setText("detailAreaCDR", fmt(b.area_CDR));
+            setText("detailRimDisc", fmt(b.rim_to_disc_ratio));
+            setText("detailISNT", fmt(b.isnt_like_risk));
+
+            setText("detailTrueLabel", labelFromValue(data.ground_truth?.true_label));
+            setText("detailPredLabel", labelFromValue(data.decision?.predicted_label));
+            setBool("detailCorrect", data.decision?.correct);
+            setText("detailScore", fmt(data.decision?.score));
+            setText("detailThreshold", fmt(data.decision?.threshold));
+            setText("detailTrueVCDR", fmt(data.ground_truth?.true_vCDR));
+
+            setText("detailEntropy", fmt(data.quality?.mean_entropy));
+            setBool("detailValidAnatomy", data.quality?.valid_anatomy);
+            setBool("detailDiscFound", data.quality?.disc_found);
+            setBool("detailCupFound", data.quality?.cup_found);
+        }
+
+        /* ── UI helpers ── */
+        function setApiStatus(state, text) {
+            els.apiStatus.className = `status-dot ${state}`;
+            els.apiStatusText.textContent = text;
+        }
+
+        function setLoading(isLoading) {
+            els.randomBtn.disabled = isLoading;
+            els.randomBtnLabel.textContent = isLoading ? "Procesando…" : "Caso aleatorio";
+            els.randomBtnIcon.innerHTML = isLoading
+                ? '<span class="spinner"></span>'
+                : '<svg viewBox="0 0 24 24" fill="none"><path d="M4 4v6h6M20 20v-6h-6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M20 10a8 8 0 0 0-14.3-3.3M4 14a8 8 0 0 0 14.3 3.3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+        }
+
+        function setImage(imgEl, placeholderEl, base64) {
+            if (base64) {
+                imgEl.src = `data:image/png;base64,${base64}`;
+                imgEl.hidden = false;
+                placeholderEl.hidden = true;
+            } else {
+                imgEl.removeAttribute("src");
+                imgEl.hidden = true;
+                placeholderEl.hidden = false;
+            }
+        }
+
+        /* ── Layers (modal / drawer) ── */
+        function openLayer(id) {
+            const layer = document.getElementById(id);
+            if (!layer) return;
+            if (activeLayer) closeActiveLayer(false);
+
+            activeLayer = layer;
+            lastFocused = document.activeElement;
+            document.body.classList.add("no-scroll");
+            els.scrim.classList.add("active");
+            els.scrim.setAttribute("aria-hidden", "false");
+            layer.classList.add("active");
+            layer.setAttribute("aria-hidden", "false");
+            if (id === "infoDrawer") els.infoBtn.setAttribute("aria-expanded", "true");
+
+            const focusable = layer.querySelector("[data-close], button, [href], input, select, textarea");
+            if (focusable) focusable.focus();
+        }
+
+        function closeActiveLayer(restoreFocus = true) {
+            if (!activeLayer) return;
+            activeLayer.classList.remove("active");
+            activeLayer.setAttribute("aria-hidden", "true");
+            els.scrim.classList.remove("active");
+            els.scrim.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("no-scroll");
+            els.infoBtn.setAttribute("aria-expanded", "false");
+            if (restoreFocus && lastFocused) lastFocused.focus();
+            activeLayer = null;
+            lastFocused = null;
+        }
+
+        /* ── Domain helpers ── */
+        function normalizeBand(value) {
+            const v = String(value || "").toLowerCase();
+            if (v === "baja") return { className: "baja", label: "Baja", verdict: "Baja sospecha de glaucoma", color: "var(--low)" };
+            if (v === "intermedia") return { className: "intermedia", label: "Intermedia", verdict: "Sospecha intermedia", color: "var(--mid)" };
+            if (v === "moderada") return { className: "moderada", label: "Moderada", verdict: "Sospecha moderada", color: "var(--high)" };
+            return { className: "", label: "Pendiente", verdict: "Sin caso analizado", color: "var(--muted)" };
+        }
+
+        function explanationFor(pct, band, riskMessage) {
+            if (!Number.isFinite(pct)) {
+                return '<span class="muted">El porcentaje aparecerá tras procesar un caso.</span>';
+            }
+            const msg = riskMessage ? ` ${escapeHtml(riskMessage)}` : "";
+            return `El modelo estima un <strong>${pct.toFixed(1)}%</strong> de compatibilidad con signos morfológicos de sospecha glaucomatosa, dentro de la banda <strong>${band.label.toLowerCase()}</strong>.${msg} <span class="muted">Interprételo como apoyo al cribado, nunca como diagnóstico definitivo.</span>`;
+        }
+
+        function labelFromValue(v) {
+            if (v === 1) return "Sospecha glaucomatosa";
+            if (v === 0) return "Sin sospecha";
+            return "—";
+        }
+
+        function fmt(v) {
+            return v !== null && v !== undefined && Number.isFinite(Number(v))
+                ? Number(v).toFixed(3) : "—";
+        }
+
+        function setText(id, value) {
+            const n = document.getElementById(id);
+            if (n) n.textContent = value;
+        }
+
+        function setBool(id, value) {
+            const n = document.getElementById(id);
+            if (!n) return;
+            if (value === true) { n.textContent = "Sí"; n.className = "ok"; }
+            else if (value === false) { n.textContent = "No"; n.className = "no"; }
+            else { n.textContent = "—"; n.className = ""; }
+        }
+
+        function escapeHtml(s) {
+            return String(s).replace(/[&<>"']/g, (c) =>
+                ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+        }
+
+        function showError(message) {
+            els.errorText.textContent = message;
+            els.errorBanner.classList.add("active");
+        }
+
+        function clearError() {
+            els.errorText.textContent = "";
+            els.errorBanner.classList.remove("active");
+        }
+    </script>
+</body>
+</html>
